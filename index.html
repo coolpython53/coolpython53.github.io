@@ -2,55 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
-    <!-- Load Marked.js to handle the .md file -->
+    <!-- Marked.js for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; padding: 40px; max-width: 900px; margin: auto; line-height: 1.6; background: #f9f9f9; }
-        .content-block { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 0 20px; 
+            background-color: #f6f8fa; 
+        }
+        .content-card { 
+            background: white; 
+            border: 1px solid #d0d7de; 
+            border-radius: 6px; 
+            padding: 24px; 
+            margin-bottom: 24px; 
+        }
+        h1 { border-bottom: 1px solid #d0d7de; padding-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <h1 id="page-title">Loading...</h1>
-    <div id="main-content"></div>
+    <h1 id="title-display">Home</h1>
+    <div id="app-container"></div>
 
     <script>
-        async function init() {
-            const container = document.getElementById('main-content');
+        async function loadSite() {
+            const container = document.getElementById('app-container');
             
             try {
-                const manifestRes = await fetch('manifest.json');
-                const config = await manifestRes.json();
+                // Fetch the manifest from the root
+                const response = await fetch('./manifest.json');
+                const manifest = await response.json();
                 
-                document.title = config.projectTitle;
-                document.getElementById('page-title').textContent = config.projectTitle;
+                // Update Page Title
+                document.title = manifest.projectTitle;
+                document.getElementById('title-display').textContent = manifest.projectTitle;
 
-                for (const file of config.files) {
-                    const path = `${config.contentFolder}/${file}`;
-                    const section = document.createElement('div');
-                    section.className = 'content-block';
-                    container.appendChild(section);
+                for (const fileName of manifest.files) {
+                    const filePath = `${manifest.contentFolder}/${fileName}`;
+                    
+                    // Create the wrapper for this file's content
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'content-card';
+                    container.appendChild(wrapper);
 
-                    const fileRes = await fetch(path);
-                    const rawContent = await fileRes.text();
+                    // Fetch the actual file content
+                    const fileContent = await fetch(filePath);
+                    const text = await fileContent.text();
 
-                    // Logic: If it's markdown, parse it. If HTML, just drop it in.
-                    if (file.endsWith('.md')) {
-                        section.innerHTML = marked.parse(rawContent);
+                    if (fileName.endsWith('.md')) {
+                        // Render Markdown
+                        wrapper.innerHTML = marked.parse(text);
                     } else {
-                        section.innerHTML = rawContent;
+                        // Render HTML
+                        wrapper.innerHTML = text;
                     }
                 }
             } catch (err) {
-                console.error("Failed to load content:", err);
-                container.innerHTML = "<p>Error loading files. Ensure you are using a local server.</p>";
+                container.innerHTML = `<p style="color:red;">Error loading manifest. Make sure your files are pushed to GitHub.</p>`;
+                console.error(err);
             }
         }
 
-        init();
+        loadSite();
     </script>
 </body>
 </html>
