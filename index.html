@@ -2,73 +2,161 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
     <!-- Marked.js for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        :root {
+            --bg-color: #f6f8fa;
+            --card-bg: #ffffff;
+            --border-color: #d0d7de;
+            --text-main: #1f2328;
+            --accent: #0969da;
+        }
+
         body { 
-            font-family: -apple-system, system-ui, sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
             line-height: 1.6; 
             max-width: 800px; 
-            margin: 40px auto; 
+            margin: 40px auto 100px auto; /* Added bottom margin for menu space */
             padding: 0 20px; 
-            background-color: #f6f8fa; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
         }
+
         .content-card { 
-            background: white; 
-            border: 1px solid #d0d7de; 
-            border-radius: 6px; 
-            padding: 24px; 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            padding: 32px; 
             margin-bottom: 24px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            scroll-margin-top: 20px; /* Helps when jumping to ID */
         }
-        h1 { border-bottom: 1px solid #d0d7de; padding-bottom: 10px; }
+
+        h1#title-display { 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 10px; 
+            margin-bottom: 32px;
+        }
+
+        /* Small Menu Styling */
+        #nav-menu {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 8px 16px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 90vw;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 4px 12px;
+            border-radius: 15px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .content-card { padding: 20px; }
+            #nav-menu { bottom: 10px; padding: 6px 12px; }
+        }
     </style>
 </head>
 <body>
 
-    <h1 id="title-display">Home</h1>
+    <h1 id="title-display">Loading...</h1>
+    
     <div id="app-container"></div>
+
+    <!-- The Small Menu Container -->
+    <nav id="nav-menu" style="display: none;"></nav>
 
     <script>
         async function loadSite() {
             const container = document.getElementById('app-container');
+            const navMenu = document.getElementById('nav-menu');
             
             try {
                 // Fetch the manifest from the root
                 const response = await fetch('./manifest.json');
+                if (!response.ok) throw new Error('Manifest not found');
+                
                 const manifest = await response.json();
                 
                 // Update Page Title
                 document.title = manifest.projectTitle;
                 document.getElementById('title-display').textContent = manifest.projectTitle;
 
+                // Show the menu if there are files
+                if (manifest.files && manifest.files.length > 0) {
+                    navMenu.style.display = 'flex';
+                }
+
                 for (const fileName of manifest.files) {
                     const filePath = `${manifest.contentFolder}/${fileName}`;
-                    
-                    // Create the wrapper for this file's content
-                    const wrapper = document.createElement('div');
+                    const sectionId = `section-${fileName.replace(/[^a-z0-9]/gi, '-')}`;
+
+                    // 1. Create Navigation Link
+                    const navLink = document.createElement('a');
+                    navLink.href = `#${sectionId}`;
+                    navLink.className = 'nav-item';
+                    // Display name without extension
+                    navLink.textContent = fileName.split('.')[0].charAt(0).toUpperCase() + fileName.split('.')[0].slice(1);
+                    navMenu.appendChild(navLink);
+
+                    // 2. Create Content Wrapper
+                    const wrapper = document.createElement('section');
+                    wrapper.id = sectionId;
                     wrapper.className = 'content-card';
                     container.appendChild(wrapper);
 
-                    // Fetch the actual file content
-                    const fileContent = await fetch(filePath);
-                    const text = await fileContent.text();
+                    // 3. Fetch and Render Content
+                    try {
+                        const fileContent = await fetch(filePath);
+                        const text = await fileContent.text();
 
-                    if (fileName.endsWith('.md')) {
-                        // Render Markdown
-                        wrapper.innerHTML = marked.parse(text);
-                    } else {
-                        // Render HTML
-                        wrapper.innerHTML = text;
+                        if (fileName.endsWith('.md')) {
+                            wrapper.innerHTML = marked.parse(text);
+                        } else {
+                            wrapper.innerHTML = text;
+                        }
+                    } catch (fileErr) {
+                        wrapper.innerHTML = `<p style="color:red;">Error loading ${fileName}</p>`;
                     }
                 }
             } catch (err) {
-                container.innerHTML = `<p style="color:red;">Error loading manifest. Make sure your files are pushed to GitHub.</p>`;
+                container.innerHTML = `
+                    <div class="content-card">
+                        <p style="color:red; font-weight:bold;">Error loading manifest.</p>
+                        <p>Check that <code>manifest.json</code> exists and is accessible.</p>
+                    </div>
+                `;
                 console.error(err);
             }
         }
 
-        loadSite();
+        window.onload = loadSite;
     </script>
 </body>
 </html>
