@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Slither</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        #score-board {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        #controls-hint {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #00f2ff;
+            color: white;
+            text-align: center;
+            display: none;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 25px;
+            background: #00f2ff;
+            border: none;
+            border-radius: 5px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="score-board">Length: <span id="score">20</span></div>
+        <div id="controls-hint">Move mouse to steer • Hold click to BOOST</div>
+    </div>
+
+    <div id="game-over">
+        <h1>GAME OVER</h1>
+        <p>You hit the edge of the world!</p>
+        <p>Final Length: <span id="final-score">0</span></p>
+        <button onclick="resetGame()">Try Again</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const finalScoreEl = document.getElementById('final-score');
+    const gameOverEl = document.getElementById('game-over');
+
+    // Constants
+    const WORLD_SIZE = 3000;
+    const GRID_SIZE = 100;
+    const FPS = 60;
+    
+    // Game State
+    let width, height;
+    let camera = { x: 0, y: 0 };
+    let mouse = { x: 0, y: 0 };
+    let isBoosting = false;
+    let isDead = false;
+    let particles = [];
+    let food = [];
+    
+    const snake = {
+        x: WORLD_SIZE / 2,
+        y: WORLD_SIZE / 2,
+        radius: 12,
+        angle: 0,
+        speed: 3,
+        baseSpeed: 3,
+        boostSpeed: 6,
+        length: 20, // number of segments
+        history: [], // stores path for segments to follow
+        hue: 180
+    };
+
+    function init() {
+        resize();
+        resetGame();
+        
+        // Spawn initial food
+        for(let i = 0; i < 400; i++) spawnFood();
+        
+        // Listeners
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        window.addEventListener('mousedown', () => isBoosting = true);
+        window.addEventListener('mouseup', () => isBoosting = false);
+        window.addEventListener('keydown', e => { if(e.code === 'Space') isBoosting = true; });
+        window.addEventListener('keyup', e => { if(e.code === 'Space') isBoosting = false; });
+        window.addEventListener('resize', resize);
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+
+    function resetGame() {
+        isDead = false;
+        gameOverEl.style.display = 'none';
+        snake.x = WORLD_SIZE / 2;
+        snake.y = WORLD_SIZE / 2;
+        snake.length = 20;
+        snake.radius = 12;
+        snake.history = [];
+        // Pre-fill history to avoid jumpy start
+        for(let i = 0; i < 500; i++) {
+            snake.history.push({x: snake.x, y: snake.y});
+        }
+    }
+
+    function spawnFood() {
+        food.push({
+            x: Math.random() * WORLD_SIZE,
+            y: Math.random() * WORLD_SIZE,
+            radius: Math.random() * 4 + 2,
+            hue: Math.random() * 360
+        });
+    }
+
+    function update() {
+        if (isDead) return;
+
+        // 1. Determine Target Angle
+        // Calculate relative to screen center
+        const dx = mouse.x - width / 2;
+        const dy = mouse.y - height / 2;
+        const targetAngle = Math.atan2(dy, dx);
+
+        // 2. Smoothly rotate towards target
+        let diff = targetAngle - snake.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        snake.angle += diff * 0.1;
+
+        // 3. Speed logic
+        if (isBoosting && snake.length > 10) {
+            snake.speed = snake.boostSpeed;
+            // Drain length slowly while boosting
+            if (Math.random() > 0.8) snake.length -= 0.1;
+        } else {
+            snake.speed = snake.baseSpeed;
+        }
+
+        // 4. Move Head
+        snake.x += Math.cos(snake.angle) * snake.speed;
+        snake.y += Math.sin(snake.angle) * snake.speed;
+
+        // 5. Update History
+        // We store positions. Segments will be spaced out along this history.
+        snake.history.unshift({ x: snake.x, y: snake.y });
+        // Clean up history to keep it memory efficient
+        if (snake.history.length > 2000) snake.history.pop();
+
+        // 6. Camera Follow
+        camera.x = snake.x - width / 2;
+        camera.y = snake.y - height / 2;
+
+        // 7. World Bounds Check
+        if (snake.x < 0 || snake.x > WORLD_SIZE || snake.y < 0 || snake.y > WORLD_SIZE) {
+            endGame();
+        }
+
+        // 8. Food Collision
+        for (let i = food.length - 1; i >= 0; i--) {
+            const f = food[i];
+            const dist = Math.hypot(f.x - snake.x, f.y - snake.y);
+            if (dist < snake.radius + f.radius) {
+                snake.length += f.radius * 0.5;
+                snake.radius = Math.min(30, 12 + (snake.length / 50));
+                food.splice(i, 1);
+                spawnFood();
+            }
+        }
+
+        scoreEl.innerText = Math.floor(snake.length);
+    }
+
+    function endGame() {
+        isDead = true;
+        finalScoreEl.innerText = Math.floor(snake.length);
+        gameOverEl.style.display = 'block';
+    }
+
+    function draw() {
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        // Draw Grid
+        ctx.beginPath();
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2;
+        for (let x = 0; x <= WORLD_SIZE; x += GRID_SIZE) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, WORLD_SIZE);
+        }
+        for (let y = 0; y <= WORLD_SIZE; y += GRID_SIZE) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(WORLD_SIZE, y);
+        }
+        ctx.stroke();
+
+        // Draw World Border
+        ctx.strokeStyle = '#00f2ff';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+        // Draw Food
+        food.forEach(f => {
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `hsl(${f.hue}, 100%, 60%)`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = `hsl(${f.hue}, 100%, 60%)`;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+
+        // Draw Snake Body
+        // Spacing determines how far apart segments are in the history array
+        const spacing = Math.max(2, Math.floor(snake.radius / 2));
+        
+        for (let i = Math.floor(snake.length); i >= 0; i--) {
+            const index = i * spacing;
+            const pos = snake.history[index] || snake.history[snake.history.length - 1];
+            
+            // Taper the tail
+            const sizeMod = Math.max(0.3, 1 - (i / (snake.length * 1.5)));
+            const r = snake.radius * sizeMod;
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            
+            // Gradient or shifting color
+            const hue = (snake.hue + (i * 2)) % 360;
+            ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+            ctx.fill();
+            
+            // Add a slight outline for depth
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Eyes on the head (i=0)
+            if (i === 0) {
+                const eyeOffset = r * 0.5;
+                const eyeSize = r * 0.3;
+                
+                // Left Eye
+                ctx.fillStyle = 'white';
+                const lx = pos.x + Math.cos(snake.angle - 0.5) * eyeOffset;
+                const ly = pos.y + Math.sin(snake.angle - 0.5) * eyeOffset;
+                ctx.beginPath();
+                ctx.arc(lx, ly, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Right Eye
+                const rx = pos.x + Math.cos(snake.angle + 0.5) * eyeOffset;
+                const ry = pos.y + Math.sin(snake.angle + 0.5) * eyeOffset;
+                ctx.beginPath();
+                ctx.arc(rx, ry, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pupils
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(lx + Math.cos(snake.angle) * eyeSize * 0.5, ly + Math.sin(snake.angle) * eyeSize * 0.5, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.arc(rx + Math.cos(snake.angle) * eyeSize * 0.5, ry + Math.sin(snake.angle) * eyeSize * 0.5, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    init();
+</script>
+</body>
+</html>
