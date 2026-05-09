@@ -19,7 +19,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
             line-height: 1.6; 
             max-width: 800px; 
-            margin: 40px auto 100px auto; /* Added bottom margin for menu space */
+            margin: 40px auto 120px auto; 
             padding: 0 20px; 
             background-color: var(--bg-color); 
             color: var(--text-main);
@@ -30,9 +30,19 @@
             border: 1px solid var(--border-color); 
             border-radius: 8px; 
             padding: 32px; 
-            margin-bottom: 24px; 
+            margin-bottom: 40px; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            scroll-margin-top: 20px; /* Helps when jumping to ID */
+            display: none; /* Hidden by default */
+        }
+
+        .content-card.active {
+            display: block; /* Only show active page */
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         h1#title-display { 
@@ -44,42 +54,55 @@
         /* Small Menu Styling */
         #nav-menu {
             position: fixed;
-            bottom: 20px;
+            bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border-color);
             border-radius: 30px;
-            padding: 8px 16px;
+            padding: 6px;
             display: flex;
-            gap: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            gap: 4px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
             z-index: 1000;
-            max-width: 90vw;
+            max-width: 95vw;
             overflow-x: auto;
-            white-space: nowrap;
+            scrollbar-width: none;
+        }
+
+        #nav-menu::-webkit-scrollbar {
+            display: none;
         }
 
         .nav-item {
+            cursor: pointer;
             text-decoration: none;
             color: var(--text-main);
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
-            padding: 4px 12px;
-            border-radius: 15px;
+            padding: 6px 14px;
+            border-radius: 20px;
             transition: all 0.2s ease;
+            white-space: nowrap;
+            border: none;
+            background: transparent;
         }
 
         .nav-item:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-item.active {
             background: var(--accent);
             color: white;
         }
 
         /* Responsive adjustments */
         @media (max-width: 600px) {
-            .content-card { padding: 20px; }
-            #nav-menu { bottom: 10px; padding: 6px 12px; }
+            .content-card { padding: 24px; }
+            #nav-menu { bottom: 16px; }
         }
     </style>
 </head>
@@ -93,66 +116,105 @@
     <nav id="nav-menu" style="display: none;"></nav>
 
     <script>
+        let currentActiveId = null;
+
+        function showPage(sectionId) {
+            // Hide all cards
+            document.querySelectorAll('.content-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show selected card
+            const targetCard = document.getElementById(sectionId);
+            if (targetCard) {
+                targetCard.classList.add('active');
+                window.scrollTo(0, 0);
+            }
+
+            // Highlight selected nav item
+            const targetNavItem = document.querySelector(`[data-section="${sectionId}"]`);
+            if (targetNavItem) {
+                targetNavItem.classList.add('active');
+            }
+
+            currentActiveId = sectionId;
+            // Update URL hash without jumping
+            history.pushState(null, null, `#${sectionId}`);
+        }
+
         async function loadSite() {
             const container = document.getElementById('app-container');
             const navMenu = document.getElementById('nav-menu');
             
             try {
-                // Fetch the manifest from the root
                 const response = await fetch('./manifest.json');
                 if (!response.ok) throw new Error('Manifest not found');
                 
                 const manifest = await response.json();
                 
-                // Update Page Title
                 document.title = manifest.projectTitle;
                 document.getElementById('title-display').textContent = manifest.projectTitle;
 
-                // Show the menu if there are files
                 if (manifest.files && manifest.files.length > 0) {
                     navMenu.style.display = 'flex';
                 }
 
-                for (const fileName of manifest.files) {
+                // Process files
+                for (let i = 0; i < manifest.files.length; i++) {
+                    const fileName = manifest.files[i];
                     const filePath = `${manifest.contentFolder}/${fileName}`;
                     const sectionId = `section-${fileName.replace(/[^a-z0-9]/gi, '-')}`;
 
-                    // 1. Create Navigation Link
-                    const navLink = document.createElement('a');
-                    navLink.href = `#${sectionId}`;
-                    navLink.className = 'nav-item';
-                    // Display name without extension
-                    navLink.textContent = fileName.split('.')[0].charAt(0).toUpperCase() + fileName.split('.')[0].slice(1);
-                    navMenu.appendChild(navLink);
+                    // Create Menu Button
+                    const navBtn = document.createElement('button');
+                    navBtn.className = 'nav-item';
+                    navBtn.dataset.section = sectionId;
+                    navBtn.textContent = fileName.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    navBtn.onclick = () => showPage(sectionId);
+                    navMenu.appendChild(navBtn);
 
-                    // 2. Create Content Wrapper
-                    const wrapper = document.createElement('section');
-                    wrapper.id = sectionId;
-                    wrapper.className = 'content-card';
-                    container.appendChild(wrapper);
+                    // Create Content Section
+                    const section = document.createElement('section');
+                    section.id = sectionId;
+                    section.className = 'content-card';
+                    container.appendChild(section);
 
-                    // 3. Fetch and Render Content
+                    // Fetch Content
                     try {
                         const fileContent = await fetch(filePath);
                         const text = await fileContent.text();
-
                         if (fileName.endsWith('.md')) {
-                            wrapper.innerHTML = marked.parse(text);
+                            section.innerHTML = marked.parse(text);
                         } else {
-                            wrapper.innerHTML = text;
+                            section.innerHTML = text;
                         }
                     } catch (fileErr) {
-                        wrapper.innerHTML = `<p style="color:red;">Error loading ${fileName}</p>`;
+                        section.innerHTML = `<p style="color:red;">Error loading ${fileName}</p>`;
+                    }
+
+                    // Default to showing the first page
+                    if (i === 0) {
+                        showPage(sectionId);
                     }
                 }
+
+                // Handle back/forward buttons
+                window.onpopstate = () => {
+                    const hash = window.location.hash.replace('#', '');
+                    if (hash) showPage(hash);
+                };
+
             } catch (err) {
                 container.innerHTML = `
-                    <div class="content-card">
+                    <div class="content-card active">
                         <p style="color:red; font-weight:bold;">Error loading manifest.</p>
-                        <p>Check that <code>manifest.json</code> exists and is accessible.</p>
+                        <p>Please check your configuration.</p>
                     </div>
                 `;
-                console.error(err);
             }
         }
 
