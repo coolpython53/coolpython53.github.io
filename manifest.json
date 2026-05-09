@@ -1,6 +1,8 @@
 {
   "projectTitle": "Home",
   "contentFolder": "pages",
-  "files": [
-    "home.md"  ]
+  "files": 
+    "home.md",
+    "chess.html"
+  ]
 }
