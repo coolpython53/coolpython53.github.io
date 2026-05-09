@@ -33,6 +33,7 @@
             margin-bottom: 40px; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             display: none; /* Hidden by default */
+            overflow: hidden;
         }
 
         .content-card.active {
@@ -119,31 +120,37 @@
         let currentActiveId = null;
 
         function showPage(sectionId) {
-            // Hide all cards
             document.querySelectorAll('.content-card').forEach(card => {
                 card.classList.remove('active');
             });
-            // Remove active class from all nav items
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('active');
             });
 
-            // Show selected card
             const targetCard = document.getElementById(sectionId);
             if (targetCard) {
                 targetCard.classList.add('active');
                 window.scrollTo(0, 0);
             }
 
-            // Highlight selected nav item
             const targetNavItem = document.querySelector(`[data-section="${sectionId}"]`);
             if (targetNavItem) {
                 targetNavItem.classList.add('active');
             }
 
             currentActiveId = sectionId;
-            // Update URL hash without jumping
             history.pushState(null, null, `#${sectionId}`);
+        }
+
+        // Helper to execute scripts in dynamically loaded HTML
+        function executeScripts(container) {
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement("script");
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
         }
 
         async function loadSite() {
@@ -163,13 +170,11 @@
                     navMenu.style.display = 'flex';
                 }
 
-                // Process files
                 for (let i = 0; i < manifest.files.length; i++) {
                     const fileName = manifest.files[i];
                     const filePath = `${manifest.contentFolder}/${fileName}`;
                     const sectionId = `section-${fileName.replace(/[^a-z0-9]/gi, '-')}`;
 
-                    // Create Menu Button
                     const navBtn = document.createElement('button');
                     navBtn.className = 'nav-item';
                     navBtn.dataset.section = sectionId;
@@ -177,32 +182,37 @@
                     navBtn.onclick = () => showPage(sectionId);
                     navMenu.appendChild(navBtn);
 
-                    // Create Content Section
                     const section = document.createElement('section');
                     section.id = sectionId;
                     section.className = 'content-card';
                     container.appendChild(section);
 
-                    // Fetch Content
                     try {
                         const fileContent = await fetch(filePath);
                         const text = await fileContent.text();
+                        
                         if (fileName.endsWith('.md')) {
                             section.innerHTML = marked.parse(text);
                         } else {
-                            section.innerHTML = text;
+                            // For HTML, we create a temporary document to extract only what's inside the body if present
+                            // or just the whole thing if it's a snippet.
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(text, 'text/html');
+                            const content = doc.body.innerHTML || text;
+                            section.innerHTML = content;
+                            
+                            // Re-inject scripts so they execute
+                            executeScripts(section);
                         }
                     } catch (fileErr) {
                         section.innerHTML = `<p style="color:red;">Error loading ${fileName}</p>`;
                     }
 
-                    // Default to showing the first page
                     if (i === 0) {
                         showPage(sectionId);
                     }
                 }
 
-                // Handle back/forward buttons
                 window.onpopstate = () => {
                     const hash = window.location.hash.replace('#', '');
                     if (hash) showPage(hash);
