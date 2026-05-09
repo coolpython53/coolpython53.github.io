@@ -2,6 +2,7 @@
   "projectTitle": "Home",
   "contentFolder": "pages",
   "files": [
-    "home.md"
+    "home.md",
+    "snake.html"
   ]
 }
