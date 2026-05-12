@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laser Chess - Tactical Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-y: auto; 
+            overflow-x: hidden;
+            touch-action: manipulation;
+            min-height: 100vh;
+        }
+
+        .board-container {
+            position: relative;
+            padding: 8px;
+            background: #1e293b;
+            border-radius: 20px;
+            border: 4px solid #334155;
+            box-shadow: 0 0 60px rgba(0,0,0,0.6);
+            margin-bottom: 2rem;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 2px;
+            background-color: #334155;
+            position: relative;
+        }
+
+        @media (max-width: 640px) {
+            .board-grid {
+                grid-template-columns: repeat(10, 34px);
+                grid-template-rows: repeat(8, 34px);
+            }
+        }
+
+        .cell {
+            background-color: #0f172a;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell:hover { background-color: #1e293b; }
+        .cell.selected { background-color: #334155; box-shadow: inset 0 0 0 3px #38bdf8; z-index: 10; border-radius: 4px; }
+        
+        .piece {
+            width: 90%;
+            height: 90%;
+            position: relative;
+            z-index: 5;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .laser-line {
+            position: absolute;
+            height: 4px;
+            pointer-events: none;
+            z-index: 50;
+            border-radius: 2px;
+            transform-origin: left center;
+        }
+
+        .laser-red { background: #ff3333; box-shadow: 0 0 12px #ff0000, 0 0 4px #fff; }
+        .laser-blue { background: #33e6ff; box-shadow: 0 0 12px #00d2ff, 0 0 4px #fff; }
+
+        .destroyed { animation: explode 0.7s forwards cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; filter: brightness(2); }
+            50% { transform: scale(1.4); opacity: 0.8; filter: brightness(5); }
+            100% { transform: scale(0); opacity: 0; filter: brightness(10); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4">
+
+    <header class="w-full max-w-2xl flex justify-between items-center mb-6 mt-4">
+        <div>
+            <h1 class="text-2xl font-black tracking-tighter italic text-white uppercase">
+                <span class="text-red-500">LASER</span> CHESS
+            </h1>
+        </div>
+        <div id="status-bar" class="px-6 py-2 rounded-full border-2 border-red-500 text-red-500 font-bold flex items-center gap-3 transition-all">
+            <span id="turn-indicator" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+            <span id="turn-text" class="tracking-widest">RED'S TURN</span>
+        </div>
+    </header>
+
+    <main class="flex flex-col items-center w-full pb-20">
+        <div class="board-container">
+            <div id="board" class="board-grid"></div>
+        </div>
+
+        <div id="controls" class="fixed bottom-6 flex gap-4 bg-slate-900/90 backdrop-blur-md p-4 rounded-3xl border border-white/10 opacity-0 translate-y-4 pointer-events-none transition-all shadow-2xl z-[100]">
+            <button onclick="rotatePiece(-1)" class="p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                ROTATE CCW
+            </button>
+            <button onclick="rotatePiece(1)" class="p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                ROTATE CW
+            </button>
+            <div class="w-px bg-slate-700 mx-1"></div>
+            <button id="skip-btn" onclick="executeTurn()" class="px-8 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95">
+                FIRE LASER
+            </button>
+        </div>
+    </main>
+
+    <div id="win-modal" class="modal">
+        <div class="bg-slate-900 p-10 rounded-[40px] border border-slate-700 text-center shadow-2xl max-w-sm w-full mx-4">
+            <h2 id="winner-name" class="text-5xl font-black mb-2 uppercase italic tracking-tighter">RED WINS</h2>
+            <p class="text-slate-400 mb-8 font-medium">Objective Neutralized.</p>
+            <button onclick="resetGame()" class="w-full py-4 bg-white text-slate-900 hover:bg-slate-200 rounded-2xl font-black uppercase tracking-widest transition-all">New Deployment</button>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_W = 10;
+        const BOARD_H = 8;
+        // DIRS: 0=Up, 1=Right, 2=Down, 3=Left
+        const DIRS = [{x:0,y:-1}, {x:1,y:0}, {x:0,y:1}, {x:-1,y:0}];
+
+        const PIECE_TYPES = {
+            KING: 'king',           
+            DEFLECTOR: 'deflector', // 1-Way Mirror 
+            TWOWAY: 'twoway',       // 2-Way Switch 
+            DEFENDER: 'defender',   // Shield
+            LASER: 'laser'          
+        };
+
+        let state = {
+            board: [],
+            turn: 'red',
+            selected: null,
+            busy: false,
+            winner: null
+        };
+
+        const PIECE_SVGS = {
+            [PIECE_TYPES.KING]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full p-2">
+                <circle cx="50" cy="50" r="38" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 2"/>
+                <path d="M30 70 L70 70 L60 30 L50 50 L40 30 Z" fill="${c}"/>
+                <circle cx="50" cy="20" r="6" fill="${c}"/>
+            </svg>`,
+            [PIECE_TYPES.DEFLECTOR]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
+                <!-- Mirror side (Top-Right diagonal face) -->
+                <path d="M15 15 L85 85" stroke="white" stroke-width="8" stroke-linecap="round"/>
+                <!-- Solid back (Bottom-Left filled triangle) -->
+                <path d="M15 15 L85 85 L15 85 Z" fill="${c}" fill-opacity="0.9"/>
+                <path d="M15 15 L85 85 L15 85 Z" fill="none" stroke="${c}" stroke-width="2"/>
+            </svg>`,
+            [PIECE_TYPES.TWOWAY]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
+                <!-- Two-Way Mirror (Reflects from both sides) -->
+                <path d="M15 15 L85 85" stroke="white" stroke-width="10" stroke-linecap="round"/>
+                <path d="M15 15 L85 85" stroke="${c}" stroke-width="2" stroke-dasharray="10 5"/>
+                <circle cx="50" cy="50" r="10" fill="${c}"/>
+            </svg>`,
+            [PIECE_TYPES.DEFENDER]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full p-1">
+                <!-- Shield bar at the top -->
+                <rect x="10" y="10" width="80" height="18" rx="6" fill="white"/>
+                <rect x="10" y="10" width="80" height="18" rx="6" fill="none" stroke="${c}" stroke-width="2"/>
+                <path d="M20 28 L80 28 L50 85 Z" fill="${c}" fill-opacity="0.4"/>
+            </svg>`,
+            [PIECE_TYPES.LASER]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
+                <circle cx="50" cy="50" r="30" fill="none" stroke="${c}" stroke-width="3" stroke-dasharray="5 5"/>
+                <rect x="40" y="5" width="20" height="40" rx="5" fill="${c}"/>
+                <circle cx="50" cy="15" r="5" fill="white" class="animate-pulse"/>
+            </svg>`
+        };
+
+        function init() {
+            state.board = Array(BOARD_H).fill().map(() => Array(BOARD_W).fill(null));
+            
+            // RED TEAM (Top) - 1 Laser, 1 King, 4 1-Way, 4 2-Way, 2 Guards
+            state.board[0][0] = { type: PIECE_TYPES.LASER, player: 'red', rot: 2 };
+            state.board[0][5] = { type: PIECE_TYPES.KING, player: 'red', rot: 2 };
+            state.board[0][4] = { type: PIECE_TYPES.DEFENDER, player: 'red', rot: 2 };
+            state.board[0][6] = { type: PIECE_TYPES.DEFENDER, player: 'red', rot: 2 };
+            
+            state.board[1][2] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 1 };
+            state.board[1][7] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 2 };
+            state.board[3][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 1 };
+            state.board[3][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 0 };
+            
+            state.board[3][4] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 0 };
+            state.board[3][5] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 1 };
+            state.board[4][2] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 0 };
+            state.board[4][7] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 1 };
+
+            // BLUE TEAM (Bottom)
+            state.board[7][9] = { type: PIECE_TYPES.LASER, player: 'blue', rot: 0 };
+            state.board[7][4] = { type: PIECE_TYPES.KING, player: 'blue', rot: 0 };
+            state.board[7][3] = { type: PIECE_TYPES.DEFENDER, player: 'blue', rot: 0 };
+            state.board[7][5] = { type: PIECE_TYPES.DEFENDER, player: 'blue', rot: 0 };
+
+            state.board[6][7] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 3 };
+            state.board[6][2] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 0 };
+            state.board[4][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 3 };
+            state.board[4][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 2 };
+
+            state.board[4][4] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
+            state.board[4][5] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
+            state.board[3][2] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
+            state.board[3][7] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
+
+            render();
+        }
+
+        function updateUI() {
+            const bar = document.getElementById('status-bar');
+            const text = document.getElementById('turn-text');
+            const ind = document.getElementById('turn-indicator');
+            const controls = document.getElementById('controls');
+
+            const isRed = state.turn === 'red';
+            const color = isRed ? '#ef4444' : '#22d3ee';
+            
+            bar.style.borderColor = color;
+            bar.style.color = color;
+            text.innerText = `${state.turn.toUpperCase()}'S TURN`;
+            ind.style.backgroundColor = color;
+
+            if (state.selected && !state.busy) {
+                controls.style.opacity = "1";
+                controls.style.pointerEvents = "auto";
+                controls.style.transform = "translateY(0)";
+            } else {
+                controls.style.opacity = "0";
+                controls.style.pointerEvents = "none";
+                controls.style.transform = "translateY(10px)";
+            }
+        }
+
+        function onCellClick(x, y) {
+            if (state.busy || state.winner) return;
+            const piece = state.board[y][x];
+
+            if (piece && piece.player === state.turn) {
+                state.selected = { x, y };
+                render();
+                return;
+            }
+
+            if (state.selected && !piece) {
+                const dx = Math.abs(x - state.selected.x);
+                const dy = Math.abs(y - state.selected.y);
+                const origin = state.board[state.selected.y][state.selected.x];
+
+                if (origin.type === PIECE_TYPES.LASER) return;
+
+                if (dx <= 1 && dy <= 1 && (dx + dy) > 0) {
+                    state.board[y][x] = { ...origin };
+                    state.board[state.selected.y][state.selected.x] = null;
+                    state.selected = null;
+                    executeTurn();
+                } else {
+                    state.selected = null;
+                    render();
+                }
+            } else {
+                state.selected = null;
+                render();
+            }
+        }
+
+        function rotatePiece(direction) {
+            if (!state.selected || state.busy) return;
+            const p = state.board[state.selected.y][state.selected.x];
+            p.rot = (p.rot + direction + 4) % 4;
+            state.selected = null;
+            executeTurn();
+        }
+
+        async function executeTurn() {
+            state.busy = true;
+            render();
+            await fireLaser();
+            if (!state.winner) {
+                state.turn = state.turn === 'red' ? 'blue' : 'red';
+                state.busy = false;
+                render();
+            }
+        }
+
+        async function fireLaser() {
+            let laserSource = null;
+            for(let y=0; y<BOARD_H; y++) {
+                for(let x=0; x<BOARD_W; x++) {
+                    const p = state.board[y][x];
+                    if (p && p.type === PIECE_TYPES.LASER && p.player === state.turn) {
+                        laserSource = {x, y, dir: p.rot};
+                        break;
+                    }
+                }
+            }
+
+            if (!laserSource) return;
+
+            let current = {x: laserSource.x, y: laserSource.y};
+            let dir = laserSource.dir; 
+            let path = [];
+            let hitPos = null;
+
+            while (true) {
+                const next = { x: current.x + DIRS[dir].x, y: current.y + DIRS[dir].y };
+                
+                // Check board boundaries
+                if (next.x < 0 || next.x >= BOARD_W || next.y < 0 || next.y >= BOARD_H) {
+                    path.push({ from: {...current}, to: {...next} });
+                    break;
+                }
+
+                const piece = state.board[next.y][next.x];
+                path.push({ from: {...current}, to: {...next} });
+
+                if (piece) {
+                    const hitFromDir = (dir + 2) % 4; 
+                    const relHitDir = (hitFromDir - piece.rot + 8) % 4;
+                    let newRelDir = -1;
+
+                    if (piece.type === PIECE_TYPES.DEFLECTOR) {
+                        // At rot 0, mirror is \ diagonal. 
+                        // It reflects if hit from Top (0) or Right (1).
+                        if (relHitDir === 0) newRelDir = 1;
+                        else if (relHitDir === 1) newRelDir = 0;
+                        else { hitPos = next; break; } // Hit from back/side
+                    } 
+                    else if (piece.type === PIECE_TYPES.TWOWAY) {
+                        // Mirror reflects from all 4 directions
+                        if (relHitDir === 0) newRelDir = 1;
+                        else if (relHitDir === 1) newRelDir = 0;
+                        else if (relHitDir === 2) newRelDir = 3;
+                        else if (relHitDir === 3) newRelDir = 2;
+                    }
+                    else if (piece.type === PIECE_TYPES.DEFENDER) {
+                        // Blocked only from the front (Top side at rot 0)
+                        if (relHitDir === 0) break; 
+                        else { hitPos = next; break; } 
+                    }
+                    else {
+                        // King or Emitter always destroyed/ends game
+                        hitPos = next;
+                        break;
+                    }
+
+                    if (newRelDir !== -1) {
+                        // Convert relative exit direction back to global
+                        dir = (newRelDir + piece.rot) % 4;
+                        current = next;
+                    }
+                } else {
+                    current = next;
+                }
+                if (path.length > 100) break; // Infinite loop safety
+            }
+
+            await drawPath(path);
+
+            if (hitPos) {
+                const target = state.board[hitPos.y][hitPos.x];
+                if (target.type === PIECE_TYPES.KING) {
+                    state.winner = target.player === 'red' ? 'BLUE' : 'RED';
+                    showWin();
+                } else {
+                    const cells = document.querySelectorAll('.cell');
+                    const idx = hitPos.y * BOARD_W + hitPos.x;
+                    if (cells[idx].firstChild) {
+                        cells[idx].firstChild.classList.add('destroyed');
+                        await new Promise(r => setTimeout(r, 700));
+                    }
+                    state.board[hitPos.y][hitPos.x] = null;
+                }
+            }
+            
+            setTimeout(() => {
+                document.querySelectorAll('.laser-line').forEach(l => l.remove());
+            }, 600);
+        }
+
+        function render() {
+            const container = document.getElementById('board');
+            container.innerHTML = '';
+
+            for (let y = 0; y < BOARD_H; y++) {
+                for (let x = 0; x < BOARD_W; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (state.selected && state.selected.x === x && state.selected.y === y) cell.classList.add('selected');
+
+                    const p = state.board[y][x];
+                    if (p) {
+                        const pEl = document.createElement('div');
+                        pEl.className = 'piece';
+                        pEl.innerHTML = PIECE_SVGS[p.type](p.player === 'red' ? '#ef4444' : '#22d3ee');
+                        pEl.style.transform = `rotate(${p.rot * 90}deg)`;
+                        cell.appendChild(pEl);
+                    }
+
+                    if (state.selected && !p) {
+                        const dx = Math.abs(x - state.selected.x);
+                        const dy = Math.abs(y - state.selected.y);
+                        if (dx <= 1 && dy <= 1 && (dx+dy) > 0) {
+                            const origin = state.board[state.selected.y][state.selected.x];
+                            if (origin.type !== PIECE_TYPES.LASER) {
+                                const indicator = document.createElement('div');
+                                indicator.className = 'w-2 h-2 rounded-full bg-green-500/30';
+                                cell.appendChild(indicator);
+                            }
+                        }
+                    }
+
+                    cell.onclick = () => onCellClick(x, y);
+                    container.appendChild(cell);
+                }
+            }
+            updateUI();
+        }
+
+        function drawPath(segments) {
+            return new Promise(resolve => {
+                const board = document.getElementById('board');
+                const boardRect = board.getBoundingClientRect();
+                const cellW = boardRect.width / BOARD_W;
+                const cellH = boardRect.height / BOARD_H;
+
+                segments.forEach((seg, i) => {
+                    setTimeout(() => {
+                        const line = document.createElement('div');
+                        line.className = `laser-line ${state.turn === 'red' ? 'laser-red' : 'laser-blue'}`;
+                        
+                        const x1 = seg.from.x * cellW + cellW/2;
+                        const y1 = seg.from.y * cellH + cellH/2;
+                        const x2 = seg.to.x * cellW + cellW/2;
+                        const y2 = seg.to.y * cellH + cellH/2;
+
+                        const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+                        const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+
+                        line.style.width = `${dist}px`;
+                        line.style.left = `${x1}px`;
+                        line.style.top = `${y1}px`;
+                        line.style.transform = `rotate(${angle}deg)`;
+                        
+                        board.appendChild(line);
+                        if (i === segments.length - 1) setTimeout(resolve, 400);
+                    }, i * 35);
+                });
+            });
+        }
+
+        function showWin() {
+            const m = document.getElementById('win-modal');
+            const n = document.getElementById('winner-name');
+            n.innerText = `${state.winner} WINS`;
+            n.style.color = state.winner === 'RED' ? '#ef4444' : '#22d3ee';
+            m.style.display = 'flex';
+        }
+
+        function resetGame() {
+            state.winner = null;
+            state.turn = 'red';
+            state.selected = null;
+            state.busy = false;
+            document.getElementById('win-modal').style.display = 'none';
+            init();
+        }
+
+        window.onload = init;
+        window.onresize = () => {
+            document.querySelectorAll('.laser-line').forEach(l => l.remove());
+            render();
+        }
+    </script>
+</body>
+</html>
