@@ -3,7 +3,6 @@
   "contentFolder": "pages",
   "files": [
     "home.md",
-    "chess.html",
-    "LaserChess.html"
+    "chess.html"
   ]
 }
