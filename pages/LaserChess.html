@@ -15,6 +15,8 @@
             overflow-x: hidden;
             touch-action: manipulation;
             min-height: 100vh;
+            margin: 0;
+            padding: 0;
         }
 
         .board-container {
@@ -24,11 +26,13 @@
             border-radius: 20px;
             border: 4px solid #334155;
             box-shadow: 0 0 60px rgba(0,0,0,0.6);
-            margin-bottom: 2rem;
+            margin: 1rem auto 2rem auto;
+            max-width: fit-content;
         }
 
         .board-grid {
             display: grid;
+            /* 10x8 Grid */
             grid-template-columns: repeat(10, 60px);
             grid-template-rows: repeat(8, 60px);
             gap: 2px;
@@ -101,34 +105,34 @@
 </head>
 <body class="flex flex-col items-center p-4">
 
-    <header class="w-full max-w-2xl flex justify-between items-center mb-6 mt-4">
+    <header class="w-full max-w-2xl flex justify-between items-center mb-6 mt-4 px-4">
         <div>
             <h1 class="text-2xl font-black tracking-tighter italic text-white uppercase">
                 <span class="text-red-500">LASER</span> CHESS
             </h1>
         </div>
-        <div id="status-bar" class="px-6 py-2 rounded-full border-2 border-red-500 text-red-500 font-bold flex items-center gap-3 transition-all">
+        <div id="status-bar" class="px-4 py-2 rounded-full border-2 border-red-500 text-red-500 font-bold flex items-center gap-3 transition-all text-sm md:text-base">
             <span id="turn-indicator" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-            <span id="turn-text" class="tracking-widest">RED'S TURN</span>
+            <span id="turn-text" class="tracking-widest uppercase">RED'S TURN</span>
         </div>
     </header>
 
-    <main class="flex flex-col items-center w-full pb-20">
+    <main class="flex flex-col items-center w-full pb-32">
         <div class="board-container">
             <div id="board" class="board-grid"></div>
         </div>
 
         <div id="controls" class="fixed bottom-6 flex gap-4 bg-slate-900/90 backdrop-blur-md p-4 rounded-3xl border border-white/10 opacity-0 translate-y-4 pointer-events-none transition-all shadow-2xl z-[100]">
-            <button onclick="rotatePiece(-1)" class="p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
+            <button onclick="rotatePiece(-1)" class="p-3 md:p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 ROTATE CCW
             </button>
-            <button onclick="rotatePiece(1)" class="p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
+            <button onclick="rotatePiece(1)" class="p-3 md:p-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all active:scale-90 text-[10px] font-black flex flex-col items-center gap-2">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                 ROTATE CW
             </button>
             <div class="w-px bg-slate-700 mx-1"></div>
-            <button id="skip-btn" onclick="executeTurn()" class="px-8 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95">
+            <button id="skip-btn" onclick="executeTurn()" class="px-6 md:px-8 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95">
                 FIRE LASER
             </button>
         </div>
@@ -171,35 +175,35 @@
                 <circle cx="50" cy="20" r="6" fill="${c}"/>
             </svg>`,
             [PIECE_TYPES.DEFLECTOR]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
-                <!-- Mirror side (Top-Right diagonal face) -->
+                <!-- One-way Mirror: Top-Left to Bottom-Right (\) -->
                 <path d="M15 15 L85 85" stroke="white" stroke-width="8" stroke-linecap="round"/>
-                <!-- Solid back (Bottom-Left filled triangle) -->
+                <!-- Vulnerable Back (Bottom-Left filled) -->
                 <path d="M15 15 L85 85 L15 85 Z" fill="${c}" fill-opacity="0.9"/>
                 <path d="M15 15 L85 85 L15 85 Z" fill="none" stroke="${c}" stroke-width="2"/>
             </svg>`,
             [PIECE_TYPES.TWOWAY]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
-                <!-- Two-Way Mirror (Reflects from both sides) -->
-                <path d="M15 15 L85 85" stroke="white" stroke-width="10" stroke-linecap="round"/>
-                <path d="M15 15 L85 85" stroke="${c}" stroke-width="2" stroke-dasharray="10 5"/>
-                <circle cx="50" cy="50" r="10" fill="${c}"/>
+                <!-- Two-Way Switch Mirror: Top-Left to Bottom-Right (\) -->
+                <path d="M15 15 L85 85" stroke="white" stroke-width="12" stroke-linecap="round"/>
+                <path d="M15 15 L85 85" stroke="${c}" stroke-width="4" stroke-dasharray="8 4"/>
+                <circle cx="50" cy="50" r="10" fill="white" stroke="${c}" stroke-width="2"/>
             </svg>`,
             [PIECE_TYPES.DEFENDER]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full p-1">
-                <!-- Shield bar at the top -->
-                <rect x="10" y="10" width="80" height="18" rx="6" fill="white"/>
-                <rect x="10" y="10" width="80" height="18" rx="6" fill="none" stroke="${c}" stroke-width="2"/>
-                <path d="M20 28 L80 28 L50 85 Z" fill="${c}" fill-opacity="0.4"/>
+                <rect x="10" y="10" width="80" height="15" rx="4" fill="white"/>
+                <path d="M20 25 L80 25 L50 85 Z" fill="${c}" fill-opacity="0.4"/>
+                <rect x="10" y="10" width="80" height="15" rx="4" fill="none" stroke="${c}" stroke-width="2"/>
             </svg>`,
             [PIECE_TYPES.LASER]: (c) => `<svg viewBox="0 0 100 100" class="w-full h-full">
-                <circle cx="50" cy="50" r="30" fill="none" stroke="${c}" stroke-width="3" stroke-dasharray="5 5"/>
-                <rect x="40" y="5" width="20" height="40" rx="5" fill="${c}"/>
-                <circle cx="50" cy="15" r="5" fill="white" class="animate-pulse"/>
+                <circle cx="50" cy="50" r="30" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="5 5"/>
+                <rect x="42" y="0" width="16" height="40" rx="4" fill="${c}"/>
+                <circle cx="50" cy="10" r="5" fill="white" class="animate-pulse"/>
             </svg>`
         };
 
         function init() {
             state.board = Array(BOARD_H).fill().map(() => Array(BOARD_W).fill(null));
             
-            // RED TEAM (Top) - 1 Laser, 1 King, 4 1-Way, 4 2-Way, 2 Guards
+            // Layout (User Requested): 1 King, 1 Laser, 4 1-Way, 4 2-Way, 2 Guards per team
+            // RED TEAM (Top)
             state.board[0][0] = { type: PIECE_TYPES.LASER, player: 'red', rot: 2 };
             state.board[0][5] = { type: PIECE_TYPES.KING, player: 'red', rot: 2 };
             state.board[0][4] = { type: PIECE_TYPES.DEFENDER, player: 'red', rot: 2 };
@@ -207,8 +211,8 @@
             
             state.board[1][2] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 1 };
             state.board[1][7] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 2 };
-            state.board[3][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 1 };
-            state.board[3][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 0 };
+            state.board[2][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 1 };
+            state.board[2][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'red', rot: 0 };
             
             state.board[3][4] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 0 };
             state.board[3][5] = { type: PIECE_TYPES.TWOWAY, player: 'red', rot: 1 };
@@ -223,13 +227,13 @@
 
             state.board[6][7] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 3 };
             state.board[6][2] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 0 };
-            state.board[4][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 3 };
-            state.board[4][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 2 };
+            state.board[5][9] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 3 };
+            state.board[5][0] = { type: PIECE_TYPES.DEFLECTOR, player: 'blue', rot: 2 };
 
-            state.board[4][4] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
-            state.board[4][5] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
-            state.board[3][2] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
-            state.board[3][7] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
+            state.board[4][5] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
+            state.board[4][4] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
+            state.board[3][7] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 1 };
+            state.board[3][2] = { type: PIECE_TYPES.TWOWAY, player: 'blue', rot: 0 };
 
             render();
         }
@@ -239,6 +243,8 @@
             const text = document.getElementById('turn-text');
             const ind = document.getElementById('turn-indicator');
             const controls = document.getElementById('controls');
+
+            if (!bar || !text || !ind || !controls) return;
 
             const isRed = state.turn === 'red';
             const color = isRed ? '#ef4444' : '#22d3ee';
@@ -332,7 +338,7 @@
             while (true) {
                 const next = { x: current.x + DIRS[dir].x, y: current.y + DIRS[dir].y };
                 
-                // Check board boundaries
+                // Boundaries
                 if (next.x < 0 || next.x >= BOARD_W || next.y < 0 || next.y >= BOARD_H) {
                     path.push({ from: {...current}, to: {...next} });
                     break;
@@ -342,44 +348,40 @@
                 path.push({ from: {...current}, to: {...next} });
 
                 if (piece) {
-                    const hitFromDir = (dir + 2) % 4; 
-                    const relHitDir = (hitFromDir - piece.rot + 8) % 4;
+                    // Convert laser coming-from direction to piece-relative
+                    const hitFromSide = (dir + 2) % 4; 
+                    const relHitSide = (hitFromSide - piece.rot + 8) % 4;
                     let newRelDir = -1;
 
+                    // Mirror diagonal \ (at piece rot 0)
                     if (piece.type === PIECE_TYPES.DEFLECTOR) {
-                        // At rot 0, mirror is \ diagonal. 
-                        // It reflects if hit from Top (0) or Right (1).
-                        if (relHitDir === 0) newRelDir = 1;
-                        else if (relHitDir === 1) newRelDir = 0;
-                        else { hitPos = next; break; } // Hit from back/side
+                        if (relHitSide === 0) newRelDir = 1; // Top hits mirror -> reflects Right
+                        else if (relHitSide === 1) newRelDir = 0; // Right hits mirror -> reflects Top
+                        else { hitPos = next; break; } // Hit back or left side -> Destroy
                     } 
                     else if (piece.type === PIECE_TYPES.TWOWAY) {
-                        // Mirror reflects from all 4 directions
-                        if (relHitDir === 0) newRelDir = 1;
-                        else if (relHitDir === 1) newRelDir = 0;
-                        else if (relHitDir === 2) newRelDir = 3;
-                        else if (relHitDir === 3) newRelDir = 2;
+                        if (relHitSide === 0) newRelDir = 1; 
+                        else if (relHitSide === 1) newRelDir = 0;
+                        else if (relHitSide === 2) newRelDir = 3;
+                        else if (relHitSide === 3) newRelDir = 2;
                     }
                     else if (piece.type === PIECE_TYPES.DEFENDER) {
-                        // Blocked only from the front (Top side at rot 0)
-                        if (relHitDir === 0) break; 
-                        else { hitPos = next; break; } 
+                        if (relHitSide === 0) break; // Blocked safely from front
+                        else { hitPos = next; break; } // Flanked -> Destroy
                     }
                     else {
-                        // King or Emitter always destroyed/ends game
-                        hitPos = next;
+                        hitPos = next; // King or Laser emitter hit
                         break;
                     }
 
                     if (newRelDir !== -1) {
-                        // Convert relative exit direction back to global
                         dir = (newRelDir + piece.rot) % 4;
                         current = next;
                     }
                 } else {
                     current = next;
                 }
-                if (path.length > 100) break; // Infinite loop safety
+                if (path.length > 100) break;
             }
 
             await drawPath(path);
@@ -392,7 +394,7 @@
                 } else {
                     const cells = document.querySelectorAll('.cell');
                     const idx = hitPos.y * BOARD_W + hitPos.x;
-                    if (cells[idx].firstChild) {
+                    if (cells[idx] && cells[idx].firstChild) {
                         cells[idx].firstChild.classList.add('destroyed');
                         await new Promise(r => setTimeout(r, 700));
                     }
@@ -407,6 +409,7 @@
 
         function render() {
             const container = document.getElementById('board');
+            if (!container) return;
             container.innerHTML = '';
 
             for (let y = 0; y < BOARD_H; y++) {
@@ -479,9 +482,11 @@
         function showWin() {
             const m = document.getElementById('win-modal');
             const n = document.getElementById('winner-name');
-            n.innerText = `${state.winner} WINS`;
-            n.style.color = state.winner === 'RED' ? '#ef4444' : '#22d3ee';
-            m.style.display = 'flex';
+            if (m && n) {
+                n.innerText = `${state.winner} WINS`;
+                n.style.color = state.winner === 'RED' ? '#ef4444' : '#22d3ee';
+                m.style.display = 'flex';
+            }
         }
 
         function resetGame() {
@@ -489,15 +494,16 @@
             state.turn = 'red';
             state.selected = null;
             state.busy = false;
-            document.getElementById('win-modal').style.display = 'none';
+            const modal = document.getElementById('win-modal');
+            if (modal) modal.style.display = 'none';
             init();
         }
 
-        window.onload = init;
-        window.onresize = () => {
+        window.addEventListener('load', init);
+        window.addEventListener('resize', () => {
             document.querySelectorAll('.laser-line').forEach(l => l.remove());
             render();
-        }
+        });
     </script>
 </body>
 </html>
