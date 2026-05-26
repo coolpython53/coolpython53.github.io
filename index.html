@@ -1,383 +1,243 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Unofficial Genshin Impact Wiki</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f6f8fa;
+            --card-bg: #ffffff;
+            --border-color: #d0d7de;
+            --text-main: #1f2328;
+            --accent: #0969da;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Happy+Monkey&display=swap" rel="stylesheet">
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: 40px auto 120px auto; 
+            padding: 0 20px; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+        }
 
-<style>
-/* Base layout adjustments */
-body { 
-  margin: 0; 
-  font-family: 'Happy Monkey', cursive; 
-  background: #0b0f1a; 
-  color: white; 
-}
+        .content-card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            padding: 32px; 
+            margin-bottom: 40px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: none; /* Hidden by default */
+            overflow: hidden;
+        }
 
-#layout { 
-  display: flex; 
-  height: 100vh; 
-  overflow: hidden;
-}
+        .content-card.active {
+            display: block; /* Only show active page */
+            animation: fadeIn 0.3s ease;
+        }
 
-/* Sidebar Specific Styles */
-#sidebar {
-  width: 300px;
-  background: #111827;
-  padding: 10px;
-  overflow-y: auto;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-#sidebar input {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: #0f172a;
-  color: white;
-  border: 1px solid #333;
-  border-radius: 6px;
-  box-sizing: border-box;
-}
+        h1#title-display { 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 10px; 
+            margin-bottom: 32px;
+        }
 
-.item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px;
-  cursor: pointer;
-  border-radius: 6px;
-}
+        /* Small Menu Styling */
+        #nav-menu {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 6px;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            z-index: 1000;
+            max-width: 95vw;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
 
-.item:hover { background: #1f2937; }
-.folder { font-weight: bold; }
+        #nav-menu::-webkit-scrollbar {
+            display: none;
+        }
 
-img.icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-}
+        .nav-item {
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            border: none;
+            background: transparent;
+        }
 
-/* Content Area Isolation */
-#content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background: #0b0f1a; /* Base canvas color */
-}
+        .nav-item:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
 
-#title { display: none; }
+        .nav-item.active {
+            background: var(--accent);
+            color: white;
+        }
 
-/* SCOPED WIKI CONTENT STYLES
-  These apply ONLY to standard markdown rendering. 
-  They won't break pages using Tailwind or custom embedded HTML.
-*/
-.wiki-content img { 
-  max-width: 100%; 
-  border-radius: 10px; 
-}
-.wiki-content audio { 
-  width: 100%; 
-}
-.wiki-content a { 
-  color: #60a5fa; 
-  cursor: pointer; 
-  text-decoration: none;
-}
-.wiki-content a:hover {
-  text-decoration: underline;
-}
-.wiki-content ul { 
-  padding-left: 20px; 
-}
-.wiki-content li { 
-  margin: 4px 0; 
-}
-
-/* Tailwind Compatibility fix: Ensures loaded markup doesn't fight core img parameters */
-#page img {
-  max-width: inline;
-}
-</style>
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .content-card { padding: 24px; }
+            #nav-menu { bottom: 16px; }
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="layout">
-  <div id="sidebar">
-    <input id="search" placeholder="Search..." oninput="renderTree()" />
-    <div id="tree"></div>
-  </div>
+    <h1 id="title-display">Loading...</h1>
+    
+    <div id="app-container"></div>
 
-  <div id="content">
-    <h2 id="title">Wiki</h2>
-    <div id="page" class="wiki-content">Select a page</div>
-  </div>
-</div>
+    <nav id="nav-menu" style="display: none;"></nav>
 
-<script>
+    <script>
+        let currentActiveId = null;
 
-const BASE_URL = "https://coolpython53.github.io/GENSHIN-WIKI/";
-const FALLBACK_ICON = BASE_URL + "blueprint.jpg";
-const ICON_EXTENSIONS = ["jpg","png","jpeg"];
+        function showPage(sectionId) {
+            document.querySelectorAll('.content-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
 
-let pages = [];
-let imageStore = [];
-let expandedFolders = new Set();
+            const targetCard = document.getElementById(sectionId);
+            if (targetCard) {
+                targetCard.classList.add('active');
+                window.scrollTo(0, 0);
+            }
 
-/* ---------------- LOAD PAGES ---------------- */
+            const targetNavItem = document.querySelector(`[data-section="${sectionId}"]`);
+            if (targetNavItem) {
+                targetNavItem.classList.add('active');
+            }
 
-async function loadPages(){
-  try {
-    const res = await fetch(BASE_URL + "manifest.json?t=" + Date.now());
-    pages = await res.json();
-  } catch {
-    pages = [];
-  }
-  renderTree();
-}
-
-/* ---------------- TREE ---------------- */
-
-function buildTree(paths){
-  const root = {};
-  paths.forEach(path=>{
-    const parts = path.split("/");
-    let cur = root;
-
-    parts.forEach((p,i)=>{
-      if(!cur[p]) {
-        cur[p] = {
-          __children:{},
-          __path: parts.slice(0,i+1).join("/")
-        };
-      }
-      cur = cur[p].__children;
-    });
-  });
-  return root;
-}
-
-function renderTree(){
-  const q = search.value.toLowerCase();
-  tree.innerHTML = "";
-
-  const filtered = pages.filter(p => p.toLowerCase().includes(q));
-  const treeData = buildTree(filtered);
-
-  renderNode(treeData, tree, 0);
-}
-
-/* ---------------- ICONS ---------------- */
-
-async function getIcon(path){
-  for(const ext of ICON_EXTENSIONS){
-    const url = `${BASE_URL}pages/${path}/blueprint.${ext}`;
-    try {
-      const res = await fetch(url, {method:'HEAD'});
-      if(res.ok) return url;
-    } catch {}
-  }
-  return FALLBACK_ICON;
-}
-
-/* ---------------- EXPANDABLE TREE ---------------- */
-
-async function renderNode(node, container, depth = 0) {
-  for (const key of Object.keys(node)) {
-    const item = node[key];
-    const fullPath = item.__path;
-    const children = item.__children;
-    const hasChildren = Object.keys(children).length > 0;
-    const isOpen = expandedFolders.has(fullPath);
-
-    const wrapper = document.createElement("div");
-
-    const div = document.createElement("div");
-    div.className = "item";
-    div.style.marginLeft = depth * 16 + "px";
-
-    const icon = await getIcon(fullPath);
-
-    div.innerHTML = `
-      <img class="icon" src="${icon}" onerror="this.src='${FALLBACK_ICON}'">
-      <span class="${hasChildren ? 'folder' : ''}">
-        ${key.replace(/_/g,' ')}
-      </span>
-    `;
-
-    div.onclick = async (e) => {
-      e.stopPropagation();
-
-      if (hasChildren) {
-        if (expandedFolders.has(fullPath)) {
-          expandedFolders.delete(fullPath);
-        } else {
-          expandedFolders.add(fullPath);
-          loadFolder(fullPath);
+            currentActiveId = sectionId;
+            history.pushState(null, null, `#${sectionId}`);
         }
-        renderTree();
-      } else {
-        loadPage(fullPath);
-      }
-    };
 
-    wrapper.appendChild(div);
+        // Helper to execute scripts in dynamically loaded HTML
+        function executeScripts(container) {
+            const scripts = container.querySelectorAll("script");
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement("script");
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+        }
 
-    if (hasChildren && isOpen) {
-      const childContainer = document.createElement("div");
-      await renderNode(children, childContainer, depth + 1);
-      wrapper.appendChild(childContainer);
-    }
+        async function loadSite() {
+            const container = document.getElementById('app-container');
+            const navMenu = document.getElementById('nav-menu');
+            
+            try {
+                const response = await fetch('./manifest.json');
+                if (!response.ok) throw new Error('Manifest not found');
+                
+                const manifest = await response.json();
+                
+                document.title = manifest.projectTitle;
+                document.getElementById('title-display').textContent = manifest.projectTitle;
 
-    container.appendChild(wrapper);
-  }
-}
+                if (manifest.files && manifest.files.length > 0) {
+                    navMenu.style.display = 'flex';
+                }
 
-/* ---------------- PAGE ---------------- */
+                for (let i = 0; i < manifest.files.length; i++) {
+                    const fileName = manifest.files[i];
+                    const filePath = `${manifest.contentFolder}/${fileName}`;
+                    const sectionId = `section-${fileName.replace(/[^a-z0-9]/gi, '-')}`;
 
-async function loadPage(fullPath){
-  page.innerHTML = "Loading...";
+                    const navBtn = document.createElement('button');
+                    navBtn.className = 'nav-item';
+                    navBtn.dataset.section = sectionId;
+                    navBtn.textContent = fileName.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    navBtn.onclick = () => showPage(sectionId);
+                    navMenu.appendChild(navBtn);
 
-  const url = `${BASE_URL}pages/${fullPath}/page.md`;
+                    const section = document.createElement('section');
+                    section.id = sectionId;
+                    section.className = 'content-card';
+                    container.appendChild(section);
 
-  try{
-    const res = await fetch(url);
-    if(!res.ok) return page.innerHTML = "📁 Folder";
+                    try {
+                        const fileContent = await fetch(filePath);
+                        const text = await fileContent.text();
+                        
+                        if (fileName.endsWith('.md')) {
+                            section.innerHTML = marked.parse(text);
+                        } else {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(text, 'text/html');
+                            
+                            // Clear out loading placeholders
+                            section.innerHTML = '';
 
-    let text = await res.text();
+                            // 1. Extract and append style rules or stylesheets found in the sub-page's head
+                            const styles = doc.querySelectorAll('style, link[rel="stylesheet"]');
+                            styles.forEach(style => {
+                                section.appendChild(style.cloneNode(true));
+                            });
 
-    text = convertAssets(fullPath, text);
-    text = convertPageLinks(text);
+                            // 2. Extract and append HTML body content wrapped cleanly
+                            const bodyContent = doc.body.innerHTML || text;
+                            const contentWrapper = document.createElement('div');
+                            contentWrapper.innerHTML = bodyContent;
+                            section.appendChild(contentWrapper);
+                            
+                            // 3. Re-inject scripts so they execute
+                            executeScripts(section);
+                        }
+                    } catch (fileErr) {
+                        section.innerHTML = `<p style="color:red;">Error loading ${fileName}</p>`;
+                    }
 
-    page.innerHTML = marked.parse(text);
-    restoreImages();
+                    if (i === 0) {
+                        showPage(sectionId);
+                    }
+                }
 
-  } catch {
-    page.innerHTML = "📁 Folder";
-  }
-}
+                window.onpopstate = () => {
+                    const hash = window.location.hash.replace('#', '');
+                    if (hash) showPage(hash);
+                };
 
-/* ---------------- FOLDER ---------------- */
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="content-card active">
+                        <p style="color:red; font-weight:bold;">Error loading manifest.</p>
+                        <p>Please check your configuration.</p>
+                    </div>
+                `;
+            }
+        }
 
-async function loadFolder(fullPath){
-  const url = `${BASE_URL}pages/${fullPath}/folder.md`;
-
-  try{
-    const res = await fetch(url);
-    if(res.ok){
-      let text = await res.text();
-
-      text = convertAssets(fullPath,text);
-      text = convertPageLinks(text);
-
-      page.innerHTML = marked.parse(text);
-    }
-  } catch {}
-}
-
-/* ---------------- IMAGE SYSTEM ---------------- */
-
-function convertAssets(fullPath, text){
-
-  imageStore = [];
-
-  text = text.replace(/image::([^\n]+)/g,(m,raw)=>{
-
-    let token = raw.trim();
-
-    const pct = token.match(/::::(\d+)%?$/);
-    if(pct){
-      const url = resolvePath(fullPath, clean(token.replace(/::::\d+%?$/,"")));
-      imageStore.push(`<img src="${url}" style="width:${pct[1]}%;height:auto;">`);
-      return `@@IMG${imageStore.length-1}@@`;
-    }
-
-    const px = token.match(/:::([\d]+)(?:,([\d]+))?$/);
-    if(px){
-      const url = resolvePath(fullPath, clean(token.replace(/:::[\d]+(,[\d]+)?$/,"")));
-
-      let style = "";
-      if(px[1]) style += `width:${px[1]}px;`;
-      if(px[2]) style += `height:${px[2]}px;`;
-
-      imageStore.push(`<img src="${url}" style="${style}">`);
-      return `@@IMG${imageStore.length-1}@@`;
-    }
-
-    const url = resolvePath(fullPath, clean(token));
-    imageStore.push(`<img src="${url}">`);
-    return `@@IMG${imageStore.length-1}@@`;
-  });
-
-  text = text.replace(/mp3::(.*)/g,(m,src)=>{
-    const url = resolvePath(fullPath,clean(src));
-    return url ? `<audio controls><source src="${url}" type="audio/mpeg"></audio>` : "";
-  });
-
-  return text;
-}
-
-function restoreImages(){
-  const el = document.getElementById("page");
-  let currentHTML = el.innerHTML;
-  imageStore.forEach((img,i)=>{
-    currentHTML = currentHTML.replaceAll(`@@IMG${i}@@`, img);
-  });
-  el.innerHTML = currentHTML;
-}
-
-/* ---------------- LINKS ---------------- */
-
-function convertPageLinks(text){
-  return text.replace(/\{\[([^\]]+)\]page::([^\}]+)\}/g,(m,t,p)=>{
-    return `<a href="#" onclick="openWikiPath('${p}')">${t.replace(/_/g,' ')}</a>`;
-  });
-}
-
-function openWikiPath(rawPath){
-  let path = rawPath
-    .replace(/^GENSHIN-WIKI\/pages\//, "")
-    .replace(/^pages\//, "");
-
-  const isFolder = path.includes("folder.md");
-  const isPage = path.includes("page.md");
-
-  path = path
-    .replace(/\/folder\.md$/, "")
-    .replace(/\/page\.md$/, "")
-    .replace(/\/$/, "");
-
-  if(isFolder) return loadFolder(path);
-  if(isPage) return loadPage(path);
-
-  loadPage(path);
-}
-
-/* ---------------- UTIL ---------------- */
-
-function clean(str){ return str.replace(/\r/g,"").trim(); }
-
-function resolvePath(base,file){
-  if(file.startsWith("http")) return file;
-
-  const stack = base.split("/");
-  file.split("/").forEach(p=>{
-    if(p==="..") stack.pop();
-    else if(p!==".") stack.push(p);
-  });
-
-  return `https://raw.githubusercontent.com/coolpython53/GENSHIN-WIKI/main/pages/${stack.join("/")}`;
-}
-
-/* ---------------- START ---------------- */
-
-loadPages();
-
-</script>
-
+        window.onload = loadSite;
+    </script>
 </body>
 </html>
