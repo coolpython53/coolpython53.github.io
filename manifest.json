@@ -3,6 +3,7 @@
   "contentFolder": "pages",
   "files": [
     "home.md",
-    "chess.html"
+    "chess.html",
+    "chinese.html"
   ]
 }
